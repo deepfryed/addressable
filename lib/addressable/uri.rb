@@ -23,7 +23,7 @@
 #++
 
 require "addressable/version"
-require "addressable/idna"
+#require "addressable/idna"
 
 module Addressable
   ##
@@ -58,7 +58,7 @@ module Addressable
     # Returns a URI object based on the parsed string.
     #
     # @param [String, Addressable::URI, #to_str] uri
-    #   The URI string to parse. 
+    #   The URI string to parse.
     # No parsing is performed if the object is already an
     # <tt>Addressable::URI</tt>.
     #
@@ -133,7 +133,7 @@ module Addressable
     # No parsing is performed if the object is already an
     # <tt>Addressable::URI</tt>.
     # @param [Hash] hints
-    #   A <tt>Hash</tt> of hints to the heuristic parser. 
+    #   A <tt>Hash</tt> of hints to the heuristic parser.
     # Defaults to <tt>{:scheme => "http"}</tt>.
     #
     # @return [Addressable::URI] The parsed URI.
@@ -428,14 +428,15 @@ module Addressable
         component.force_encoding(Encoding::ASCII_8BIT)
       end
       unencoded = self.unencode_component(component)
-      begin
-        encoded = self.encode_component(
-          Addressable::IDNA.unicode_normalize_kc(unencoded),
-          character_class
-        )
-      rescue ArgumentError
-        encoded = self.encode_component(unencoded)
-      end
+      encoded = self.encode_component(unencoded)
+      #begin
+      #  encoded = self.encode_component(
+      #    Addressable::IDNA.unicode_normalize_kc(unencoded),
+      #    character_class
+      #  )
+      #rescue ArgumentError
+      #  encoded = self.encode_component(unencoded)
+      #end
       return encoded
     end
 
@@ -502,7 +503,7 @@ module Addressable
     # <tt>String</tt>.
     #
     # @return [String, Addressable::URI]
-    #   The encoded URI. 
+    #   The encoded URI.
     # The return type is determined by the <tt>returning</tt> parameter.
     def self.normalized_encode(uri, returning=String)
       if !uri.respond_to?(:to_str)
@@ -526,13 +527,14 @@ module Addressable
       }
       components.each do |key, value|
         if value != nil
-          begin
-            components[key] =
-              Addressable::IDNA.unicode_normalize_kc(value.to_str)
-          rescue ArgumentError
-            # Likely a malformed UTF-8 character, skip unicode normalization
-            components[key] = value.to_str
-          end
+         #begin
+         #  components[key] =
+         #    Addressable::IDNA.unicode_normalize_kc(value.to_str)
+         #rescue ArgumentError
+         #  # Likely a malformed UTF-8 character, skip unicode normalization
+         #  components[key] = value.to_str
+         #end
+         components[key] = value.to_str
         end
       end
       encoded_uri = Addressable::URI.new(
@@ -865,9 +867,10 @@ module Addressable
       @normalized_host ||= (begin
         if self.host != nil
           if self.host.strip != ""
-            result = ::Addressable::IDNA.to_ascii(
-              self.class.unencode_component(self.host.strip.downcase)
-            )
+           result = host.strip.downcase
+           #result = ::Addressable::IDNA.to_ascii(
+           #  self.class.unencode_component(self.host.strip.downcase)
+           #)
             if result[-1..-1] == "."
               # Trailing dots are unnecessary
               result = result[0...-1]
@@ -1779,7 +1782,7 @@ module Addressable
     # @return [Addressable::URI] A URI suitable for display purposes.
     def display_uri
       display_uri = self.normalize
-      display_uri.host = ::Addressable::IDNA.to_unicode(display_uri.host)
+      #display_uri.host = ::Addressable::IDNA.to_unicode(display_uri.host)
       return display_uri
     end
 
