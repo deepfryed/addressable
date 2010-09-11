@@ -163,6 +163,10 @@ describe Addressable::URI, "when created from nil components" do
     @uri = Addressable::URI.new
   end
 
+  it "should have a nil site value" do
+    @uri.site.should == nil
+  end
+
   it "should have an empty path" do
     @uri.path.should == ""
   end
@@ -171,9 +175,16 @@ describe Addressable::URI, "when created from nil components" do
     @uri.to_s.should == ""
   end
 
-  it "should still be an empty uri if the scheme is set to whitespace" do
-    @uri.scheme = "\t \n"
-    @uri.to_s.should == ""
+  it "should raise an error if the scheme is set to whitespace" do
+    (lambda do
+      @uri.scheme = "\t \n"
+    end).should raise_error(Addressable::URI::InvalidURIError)
+  end
+
+  it "should raise an error if the scheme is set to all digits" do
+    (lambda do
+      @uri.scheme = "123"
+    end).should raise_error(Addressable::URI::InvalidURIError)
   end
 
   it "should raise an error if set into an invalid state" do
@@ -208,6 +219,10 @@ describe Addressable::URI, "when created from string components" do
     @uri = Addressable::URI.new(
       :scheme => "http", :host => "example.com"
     )
+  end
+
+  it "should have a site value of 'http://example.com'" do
+    @uri.site.should == "http://example.com"
   end
 
   it "should be equal to the equivalent parsed URI" do
@@ -252,6 +267,10 @@ describe Addressable::URI, "when created with an authority and no port" do
     @uri.port.should == nil
     @uri.inferred_port.should == nil
   end
+
+  it "should have a site value of '//user@example.com'" do
+    @uri.site.should == "//user@example.com"
+  end
 end
 
 describe Addressable::URI, "when created with both a userinfo and a user" do
@@ -264,19 +283,35 @@ end
 
 describe Addressable::URI, "when created with a path that hasn't been " +
     "prefixed with a '/' but a host specified" do
-  it "should prefix a '/' to the path" do
-    Addressable::URI.new(
+  before do
+    @uri = Addressable::URI.new(
       :scheme => "http", :host => "example.com", :path => "path"
-    ).should == Addressable::URI.parse("http://example.com/path")
+    )
+  end
+
+  it "should prefix a '/' to the path" do
+    @uri.should == Addressable::URI.parse("http://example.com/path")
+  end
+
+  it "should have a site value of 'http://example.com'" do
+    @uri.site.should == "http://example.com"
   end
 end
 
 describe Addressable::URI, "when created with a path that hasn't been " +
     "prefixed with a '/' but no host specified" do
-  it "should prefix a '/' to the path" do
-    Addressable::URI.new(
+  before do
+    @uri = Addressable::URI.new(
       :scheme => "http", :path => "path"
-    ).should == Addressable::URI.parse("http:path")
+    )
+  end
+
+  it "should not prefix a '/' to the path" do
+    @uri.should == Addressable::URI.parse("http:path")
+  end
+  
+  it "should have a site value of 'http:'" do
+    @uri.site.should == "http:"
   end
 end
 
@@ -733,6 +768,27 @@ describe Addressable::URI, "when parsed from " +
     @uri.join!(@uri).to_s.should == "http://example.com"
   end
 
+  it "should be equivalent to http://EXAMPLE.com" do
+    @uri.should == Addressable::URI.parse("http://EXAMPLE.com")
+  end
+
+  it "should be equivalent to http://EXAMPLE.com:80/" do
+    @uri.should == Addressable::URI.parse("http://EXAMPLE.com:80/")
+  end
+
+  it "should have the same hash as http://example.com" do
+    @uri.hash.should == Addressable::URI.parse("http://example.com").hash
+  end
+
+  it "should have the same hash as http://EXAMPLE.com after assignment" do
+    @uri.host = "EXAMPLE.com"
+    @uri.hash.should == Addressable::URI.parse("http://EXAMPLE.com").hash
+  end
+
+  it "should have a different hash from http://EXAMPLE.com" do
+    @uri.hash.should_not == Addressable::URI.parse("http://EXAMPLE.com").hash
+  end
+
   # Section 6.2.3 of RFC 3986
   it "should be equivalent to http://example.com/" do
     @uri.should == Addressable::URI.parse("http://example.com/")
@@ -897,6 +953,12 @@ describe Addressable::URI, "when parsed from " +
     @uri.query.should == "x=y"
   end
 
+  it "should raise an error if the site value is set to something bogus" do
+    (lambda do
+      @uri.site = 42
+    end).should raise_error(TypeError)
+  end
+
   it "should raise an error if the request URI is set to something bogus" do
     (lambda do
       @uri.request_uri = 42
@@ -993,6 +1055,42 @@ describe Addressable::URI, "when parsed from " +
 
   it "should have the same hash as an equal URI" do
     @uri.hash.should == Addressable::URI.parse("http://example.com/").hash
+  end
+
+  it "should be equivalent to http://EXAMPLE.com" do
+    @uri.should == Addressable::URI.parse("http://EXAMPLE.com")
+  end
+
+  it "should be equivalent to http://EXAMPLE.com:80/" do
+    @uri.should == Addressable::URI.parse("http://EXAMPLE.com:80/")
+  end
+
+  it "should have the same hash as http://example.com/" do
+    @uri.hash.should == Addressable::URI.parse("http://example.com/").hash
+  end
+
+  it "should have the same hash as http://example.com after assignment" do
+    @uri.path = ""
+    @uri.hash.should == Addressable::URI.parse("http://example.com").hash
+  end
+
+  it "should have the same hash as http://example.com/? after assignment" do
+    @uri.query = ""
+    @uri.hash.should == Addressable::URI.parse("http://example.com/?").hash
+  end
+
+  it "should have the same hash as http://example.com/? after assignment" do
+    @uri.query_values = {}
+    @uri.hash.should == Addressable::URI.parse("http://example.com/?").hash
+  end
+
+  it "should have the same hash as http://example.com/# after assignment" do
+    @uri.fragment = ""
+    @uri.hash.should == Addressable::URI.parse("http://example.com/#").hash
+  end
+
+  it "should have a different hash from http://example.com" do
+    @uri.hash.should_not == Addressable::URI.parse("http://example.com").hash
   end
 end
 
@@ -1953,10 +2051,10 @@ describe Addressable::URI, "when parsed from " +
 end
 
 describe Addressable::URI, "when parsed from " +
-    "'ssh+svn://developername@rubyforge.org/var/svn/project'" do
+    "'ssh+svn://developername@RUBYFORGE.ORG/var/svn/project'" do
   before do
     @uri = Addressable::URI.parse(
-      "ssh+svn://developername@rubyforge.org/var/svn/project"
+      "ssh+svn://developername@RUBYFORGE.ORG/var/svn/project"
     )
   end
 
@@ -1966,6 +2064,10 @@ describe Addressable::URI, "when parsed from " +
 
   it "should have a normalized scheme of 'svn+ssh'" do
     @uri.normalized_scheme.should == "svn+ssh"
+  end
+
+  it "should have a normalized site of 'svn+ssh'" do
+    @uri.normalized_site.should == "svn+ssh://developername@rubyforge.org"
   end
 
   it "should not be considered to be ip-based" do
@@ -2195,6 +2297,22 @@ describe Addressable::URI, "when parsed from " +
       "bogus%21://user:pass@example.com/path/to/resource?query=x#fragment"
   end
 
+  it "should have the correct site segment after assignment" do
+    @uri.site = "https://newuser:newpass@example.com:443"
+    @uri.scheme.should == "https"
+    @uri.authority.should == "newuser:newpass@example.com:443"
+    @uri.user.should == "newuser"
+    @uri.password.should == "newpass"
+    @uri.userinfo.should == "newuser:newpass"
+    @uri.normalized_userinfo.should == "newuser:newpass"
+    @uri.host.should == "example.com"
+    @uri.port.should == 443
+    @uri.inferred_port.should == 443
+    @uri.to_s.should ==
+      "https://newuser:newpass@example.com:443" +
+      "/path/to/resource?query=x#fragment"
+  end
+
   it "should have the correct authority segment after assignment" do
     @uri.authority = "newuser:newpass@example.com:80"
     @uri.authority.should == "newuser:newpass@example.com:80"
@@ -2253,6 +2371,20 @@ describe Addressable::URI, "when parsed from " +
     @uri.path.should == "/newpath/to/resource"
     @uri.to_s.should ==
       "http://user:pass@example.com/newpath/to/resource?query=x#fragment"
+  end
+
+  it "should have the correct scheme and authority after nil assignment" do
+    @uri.site = nil
+    @uri.scheme.should == nil
+    @uri.authority.should == nil
+    @uri.to_s.should == "/path/to/resource?query=x#fragment"
+  end
+
+  it "should have the correct scheme and authority after assignment" do
+    @uri.site = "file://"
+    @uri.scheme.should == "file"
+    @uri.authority.should == ""
+    @uri.to_s.should == "file:///path/to/resource?query=x#fragment"
   end
 
   it "should have the correct path after nil assignment" do
@@ -2343,12 +2475,14 @@ describe Addressable::URI, "when parsed from " +
   it "should have the correct values after a merge" do
     @uri.merge(:authority => "foo:bar@baz:42").to_s.should ==
       "http://foo:bar@baz:42/path/to/resource?query=x#fragment"
+    # Ensure the operation was not destructive
     @uri.to_s.should ==
       "http://user:pass@example.com/path/to/resource?query=x#fragment"
   end
 
   it "should have the correct values after a destructive merge" do
     @uri.merge!(:authority => "foo:bar@baz:42")
+    # Ensure the operation was destructive
     @uri.to_s.should ==
       "http://foo:bar@baz:42/path/to/resource?query=x#fragment"
   end
@@ -2356,6 +2490,12 @@ describe Addressable::URI, "when parsed from " +
   it "should fail to merge with bogus values" do
     (lambda do
       @uri.merge(:port => "bogus")
+    end).should raise_error(Addressable::URI::InvalidURIError)
+  end
+
+  it "should fail to merge with bogus values" do
+    (lambda do
+      @uri.merge(:authority => "bar@baz:bogus")
     end).should raise_error(Addressable::URI::InvalidURIError)
   end
 
@@ -2385,6 +2525,36 @@ describe Addressable::URI, "when parsed from " +
 
   it "should be identical to its duplicate" do
     @uri.should == @uri.dup
+  end
+end
+
+describe Addressable::URI, "when parsed from " +
+    "'http://example.com/?q&&x=b'" do
+  before do
+    @uri = Addressable::URI.parse("http://example.com/?q&&x=b")
+  end
+
+  it "should have a query of 'q&&x=b'" do
+    @uri.query.should == "q&&x=b"
+  end
+
+  it "should have query_values of {'q' => true, 'x' => 'b'}" do
+    @uri.query_values.should == {'q' => true, 'x' => 'b'}
+  end
+end
+
+describe Addressable::URI, "when parsed from " +
+    "'http://example.com/?q='" do
+  before do
+    @uri = Addressable::URI.parse("http://example.com/?q=")
+  end
+
+  it "should have a query of 'q='" do
+    @uri.query.should == "q="
+  end
+
+  it "should have query_values of {'q' => ''}" do
+    @uri.query_values.should == {'q' => ''}
   end
 end
 
@@ -2659,6 +2829,14 @@ describe Addressable::URI, "when parsed from " +
 
   it "should have a host of nil" do
     @uri.host.should == nil
+  end
+
+  it "should have a site of nil" do
+    @uri.site.should == nil
+  end
+
+  it "should have a normalized_site of nil" do
+    @uri.normalized_site.should == nil
   end
 
   it "should have a path of ''" do
@@ -3515,6 +3693,95 @@ describe Addressable::URI, "when parsing a non-String object" do
   end
 end
 
+describe Addressable::URI, "when form encoding a hash" do
+  it "should result in correct percent encoded sequence" do
+    Addressable::URI.form_encode(
+      {"&one" => "/1", "=two" => "?2", ":three" => "#3"}
+    ).should == "%26one=%2F1&%3Dtwo=%3F2&%3Athree=%233"
+  end
+
+  it "should result in correct percent encoded sequence" do
+    Addressable::URI.form_encode(
+      {"q" => "one two three"}
+    ).should == "q=one+two+three"
+  end
+
+  it "should result in correct percent encoded sequence" do
+    Addressable::URI.form_encode(
+      {"key" => nil}
+    ).should == "key="
+  end
+
+  it "should result in correctly encoded newlines" do
+    Addressable::URI.form_encode(
+      {"text" => "one\ntwo\rthree\r\nfour\n\r"}
+    ).should == "text=one%0D%0Atwo%0D%0Athree%0D%0Afour%0D%0A%0D%0A"
+  end
+
+  it "should result in a sorted percent encoded sequence" do
+    Addressable::URI.form_encode(
+      [["a", "1"], ["dup", "3"], ["dup", "2"]], true
+    ).should == "a=1&dup=2&dup=3"
+  end
+end
+
+describe Addressable::URI, "when form encoding a non-Array object" do
+  it "should raise a TypeError for objects than cannot be converted" do
+    (lambda do
+      Addressable::URI.form_encode(42)
+    end).should raise_error(TypeError, "Can't convert Fixnum into Array.")
+  end
+end
+
+describe Addressable::URI, "when form unencoding a string" do
+  it "should result in correct values" do
+    Addressable::URI.form_unencode(
+      "%26one=%2F1&%3Dtwo=%3F2&%3Athree=%233"
+    ).should == [["&one", "/1"], ["=two", "?2"], [":three", "#3"]]
+  end
+
+  it "should result in correct values" do
+    Addressable::URI.form_unencode(
+      "q=one+two+three"
+    ).should == [["q", "one two three"]]
+  end
+
+  it "should result in correct values" do
+    Addressable::URI.form_unencode(
+      "text=one%0D%0Atwo%0D%0Athree%0D%0Afour%0D%0A%0D%0A"
+    ).should == [["text", "one\ntwo\nthree\nfour\n\n"]]
+  end
+
+  it "should result in correct values" do
+    Addressable::URI.form_unencode(
+      "a=1&dup=2&dup=3"
+    ).should == [["a", "1"], ["dup", "2"], ["dup", "3"]]
+  end
+
+  it "should result in correct values" do
+    Addressable::URI.form_unencode(
+      "key"
+    ).should == [["key", nil]]
+  end
+
+  it "should result in correct values" do
+    Addressable::URI.form_unencode("GivenName=Ren%C3%A9").should ==
+      [["GivenName", "René"]]
+  end
+end
+
+describe Addressable::URI, "when form unencoding a non-String object" do
+  it "should correctly parse anything with a 'to_str' method" do
+    Addressable::URI.form_unencode(SuperString.new(42))
+  end
+
+  it "should raise a TypeError for objects than cannot be converted" do
+    (lambda do
+      Addressable::URI.form_unencode(42)
+    end).should raise_error(TypeError, "Can't convert Fixnum into String.")
+  end
+end
+
 describe Addressable::URI, "when normalizing a non-String object" do
   it "should correctly parse anything with a 'to_str' method" do
     Addressable::URI.normalize_component(SuperString.new(42))
@@ -3589,6 +3856,13 @@ describe Addressable::URI, "when encoding a multibyte string" do
     Addressable::URI.encode_component(
       "günther", /[^a-zA-Z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\-\.\_\~]/
     ).should == "g%C3%BCnther"
+  end
+end
+
+describe Addressable::URI, "when form encoding a multibyte string" do
+  it "should result in correct percent encoded sequence" do
+    Addressable::URI.form_encode({"GivenName" => "René"}).should ==
+      "GivenName=Ren%C3%A9"
   end
 end
 
@@ -3863,5 +4137,67 @@ describe Addressable::URI, "when assigning query values" do
       :a => 'a', :b => {:c => true, :d => 'd'}
     }
     @uri.query.should == "a=a&b[c]&b[d]=d"
+  end
+
+  it "should correctly assign {}" do
+    @uri.query_values = {}
+    @uri.query.should == ''
+  end
+
+  it "should correctly assign nil" do
+    @uri.query_values = nil
+    @uri.query.should == nil
+  end
+
+  it "should correctly sort {'ab' => 'c', :ab => 'a', :a => 'x'}" do
+    @uri.query_values = {'ab' => 'c', :ab => 'a', :a => 'x'}
+    @uri.query.should == "a=x&ab=a&ab=c"
+  end
+end
+
+describe Addressable::URI, "when assigning path values" do
+  before do
+    @uri = Addressable::URI.new
+  end
+
+  it "should correctly assign paths containing colons" do
+    @uri.path = "acct:bob@sporkmonger.com"
+    Addressable::URI.parse(@uri.normalize.to_str).path.should == @uri.path
+    @uri.normalize.to_str.should == "acct%2Fbob@sporkmonger.com"
+  end
+
+  it "should correctly assign paths containing colons" do
+    @uri.path = "/acct:bob@sporkmonger.com"
+    @uri.authority = "example.com"
+    @uri.normalize.to_str.should == "//example.com/acct:bob@sporkmonger.com"
+  end
+
+  it "should correctly assign paths containing colons" do
+    @uri.path = "acct:bob@sporkmonger.com"
+    @uri.scheme = "something"
+    @uri.normalize.to_str.should == "something:acct:bob@sporkmonger.com"
+  end
+
+  it "should not allow relative paths to be assigned on absolute URIs" do
+    (lambda do
+      @uri.scheme = "http"
+      @uri.host = "example.com"
+      @uri.path = "acct:bob@sporkmonger.com"
+    end).should raise_error(Addressable::URI::InvalidURIError)
+  end
+
+  it "should not allow relative paths to be assigned on absolute URIs" do
+    (lambda do
+      @uri.path = "acct:bob@sporkmonger.com"
+      @uri.scheme = "http"
+      @uri.host = "example.com"
+    end).should raise_error(Addressable::URI::InvalidURIError)
+  end
+
+  it "should not allow relative paths to be assigned on absolute URIs" do
+    (lambda do
+      @uri.path = "uuid:0b3ecf60-3f93-11df-a9c3-001f5bfffe12"
+      @uri.scheme = "urn"
+    end).should_not raise_error(Addressable::URI::InvalidURIError)
   end
 end

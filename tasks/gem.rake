@@ -21,6 +21,7 @@ namespace :gem do
     s.add_development_dependency("rake", ">= 0.7.3")
     s.add_development_dependency("rspec", ">= 1.0.8")
     s.add_development_dependency("launchy", ">= 0.3.2")
+    s.add_development_dependency("diff-lcs", ">= 1.1.2")
 
     s.require_path = "lib"
 
@@ -34,6 +35,21 @@ namespace :gem do
     p.gem_spec = GEM_SPEC
     p.need_tar = true
     p.need_zip = true
+  end
+
+  desc "Generates .gemspec file"
+  task :gemspec do
+    spec_string = GEM_SPEC.to_ruby
+
+    begin
+      Thread.new { eval("$SAFE = 3\n#{spec_string}", binding) }.join
+    rescue
+      abort "unsafe gemspec: #{$!}"
+    else
+      File.open("#{GEM_SPEC.name}.gemspec", 'w') do |file|
+        file.write spec_string
+      end
+    end
   end
 
   desc "Show information about the gem"
